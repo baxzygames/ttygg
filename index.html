@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Regalos para Mi Amor 💖</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      background: #ffe4ec;
+      padding: 2rem;
+      text-align: center;
+    }
+    .hidden { display: none; }
+    .card {
+      background: white;
+      padding: 1rem;
+      margin: 1rem auto;
+      max-width: 300px;
+      border-radius: 1rem;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    button {
+      background: #ec407a;
+      color: white;
+      border: none;
+      padding: 0.5rem 1rem;
+      margin-top: 1rem;
+      border-radius: 0.5rem;
+      cursor: pointer;
+    }
+    button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+    input {
+      padding: 0.5rem;
+      border-radius: 0.5rem;
+      border: 1px solid #ccc;
+    }
+    ul { list-style: none; padding: 0; }
+    li { margin: 0.5rem 0; }
+    li button {
+      background: #ff6b6b;
+      margin-left: 10px;
+      padding: 0.2rem 0.5rem;
+    }
+  </style>
+</head>
+<body>
+  <div id="login">
+    <h1>Bienvenida 💖</h1>
+    <input type="password" id="passwordInput" placeholder="Ingresa la clave" />
+    <br>
+    <button onclick="checkPassword()">Entrar</button>
+  </div>
+
+  <div id="catalog" class="hidden">
+    <h2>¡Hola amor! 💖 Tus puntos: <span id="pointsDisplay"></span></h2>
+    <div id="secretButtons" class="hidden">
+      <button onclick="addPoints()">+10 puntos (secreto)</button>
+    </div>
+    <h3>Premios disponibles</h3>
+    <div id="rewardsContainer"></div>
+    <h4>🎁 Premios reclamados</h4>
+    <ul id="claimedList"></ul>
+  </div>
+
+  <script>
+    const PASSWORD_USER = 'amor2025';
+    const PASSWORD_OWNER = 'soyyo2025';
+    let isOwner = false;
+    let points = 0;
+    let claimed = [];
+
+    const API_URL = "https://script.google.com/macros/s/AKfycbyZGfnmjmrymBetqQc1KJxgGXIMG66X6ZfKooPA6WIv9rJEkfwuI2FLgVF38wHpjy5E/exec";
+
+    const rewards = [
+      { id: 1, title: 'Cena romántica', points: 100 },
+      { id: 2, title: 'Cine', points: 50 },
+      { id: 3, title: 'Bono de ropa', points: 150 },
+      { id: 4, title: 'Skin Care', points: 200 },
+      { id: 5, title: 'Cámara Instantánea', points: 300 },
+      { id: 6, title: 'Helado', points: 20 },
+      { id: 7, title: 'Zapatos Bosi', points: 200 }
+    ];
+
+    function checkPassword() {
+      const input = document.getElementById('passwordInput').value;
+      if (input === PASSWORD_USER || input === PASSWORD_OWNER) {
+        isOwner = input === PASSWORD_OWNER;
+        document.getElementById('login').classList.add('hidden');
+        document.getElementById('catalog').classList.remove('hidden');
+        if (isOwner) {
+          document.getElementById('secretButtons').classList.remove('hidden');
+        }
+        loadData();
+      } else {
+        alert("Clave incorrecta 💔");
+      }
+    }
+
+    async function loadData() {
+      try {
+        const res = await fetch(API_URL);
+        const data = await res.json();
+        points = parseInt(data.puntos);
+        claimed = data.reclamados || [];
+        renderCatalog();
+      } catch (err) {
+        alert("Error cargando datos de Google Sheets");
+        console.error(err);
+      }
+    }
+
+    function renderCatalog() {
+      document.getElementById('pointsDisplay').textContent = points;
+      const container = document.getElementById('rewardsContainer');
+      container.innerHTML = '';
+      rewards.forEach(r => {
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.innerHTML = `
+          <h3>${r.title}</h3>
+          <p>${r.points} puntos</p>
+          <button onclick="redeem(${r.id})" ${points < r.points ? 'disabled' : ''}>Canjear</button>
+        `;
+        container.appendChild(card);
+      });
+
+      const claimedList = document.getElementById('claimedList');
+      claimedList.innerHTML = '';
+      claimed.forEach((item, index) => {
+        const li = document.createElement('li');
+        li.textContent = item;
+        if (isOwner) {
+          const btn = document.createElement('button');
+          btn.textContent = '❌';
+          btn.onclick = () => removeClaimed(index);
+          li.appendChild(btn);
+        }
+        claimedList.appendChild(li);
+      });
+    }
+
+    function redeem(id) {
+      const reward = rewards.find(r => r.id === id);
+      if (reward && points >= reward.points) {
+        points -= reward.points;
+        claimed.push(reward.title);
+        saveData();
+      }
+    }
+
+    function removeClaimed(index) {
+      claimed.splice(index, 1);
+      saveData();
+    }
+
+    function addPoints() {
+      points += 10;
+      saveData();
+    }
+
+    async function saveData() {
+      try {
+        await fetch(API_URL, {
+          method: "POST",
+          body: JSON.stringify({ puntos: points, reclamados: claimed }),
+          headers: { "Content-Type": "application/json" }
+        });
+        renderCatalog();
+      } catch (err) {
+        alert("Error guardando datos");
+        console.error(err);
+      }
+    }
+  </script>
+</body>
+</html>
